@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>台灣即時天氣與地圖資訊 | Taiwan Weather & Map Dashboard</title>
+  <meta name="description" content="台灣各地即時天氣預報，包含互動式氣象地圖，提供溫度、降雨機率等資訊，資料來源中央氣象署 CWA。" />
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet" />
+  
+  <style>
+    :root {
+      --bg-deep:    #0a0f1e;
+      --bg-card:    rgba(255,255,255,0.06);
+      --bg-card-hover: rgba(255,255,255,0.11);
+      --glass-border: rgba(255,255,255,0.12);
+      --accent-blue: #4f9eff;
+      --accent-cyan: #00d4ff;
+      --accent-orange: #ff8c42;
+      --accent-red:  #ff4d6d;
+      --accent-green: #4ade80;
+      --text-primary: #f0f4ff;
+      --text-secondary: #8b9cc8;
+      --text-muted: #4a5580;
+      --shadow-glow: 0 0 40px rgba(79,158,255,0.12);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Noto Sans TC', 'Inter', sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%, rgba(79,158,255,0.12) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 80%, rgba(0,212,255,0.08) 0%, transparent 55%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .container { max-width: 1400px; margin: 0 auto; padding: 0 20px; position: relative; z-index: 1; }
+
+    header {
+      padding: 24px 0;
+      border-bottom: 1px solid var(--glass-border);
+      background: rgba(10,15,30,0.8);
+      backdrop-filter: blur(10px);
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+    }
+
+    .header-inner { display: flex; justify-content: space-between; align-items: center; }
+    .logo { display: flex; align-items: center; gap: 14px; }
+    .logo-icon { font-size: 2rem; }
+    .logo-text h1 {
+      font-size: 1.4rem; font-weight: 700;
+      background: linear-gradient(135deg, #4f9eff 0%, #00d4ff 50%, #a78bfa 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 350px;
+      gap: 24px;
+      margin-top: 30px;
+    }
+
+    /* Map Section */
+    .map-container {
+      background: var(--bg-card);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 16px;
+      height: 700px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #map {
+      flex: 1;
+      border-radius: 12px;
+      background: #1a1f35;
+      z-index: 1;
+    }
+    
+    /* Custom Leaflet Dark Theme */
+    .leaflet-container { background: #0f1525; }
+    .leaflet-bar a { background-color: rgba(30, 40, 60, 0.8) !important; color: #fff !important; border-bottom: 1px solid #333 !important; }
+    
+    /* Custom Map Marker (Temperature Label) */
+    .temp-marker {
+      background: rgba(10, 15, 30, 0.85);
+      border: 1px solid var(--accent-blue);
+      color: white;
+      border-radius: 20px;
+      padding: 4px 10px;
+      font-weight: bold;
+      text-align: center;
+      box-shadow: 0 0 10px rgba(79, 158, 255, 0.5);
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.85rem;
+      backdrop-filter: blur(4px);
+    }
+    
+    .temp-marker.hot { border-color: var(--accent-orange); box-shadow: 0 0 10px rgba(255, 140, 66, 0.5); }
+    .temp-marker.cold { border-color: #a78bfa; box-shadow: 0 0 10px rgba(167, 139, 250, 0.5); }
+
+    /* Side Panel */
+    .side-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .selected-info-card {
+      background: var(--bg-card);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 24px;
+      backdrop-filter: blur(12px);
+      box-shadow: var(--shadow-glow);
+    }
+    
+    .selected-info-card h2 {
+      font-size: 1.5rem;
+      margin-bottom: 10px;
+      color: var(--accent-cyan);
+      border-bottom: 1px solid var(--glass-border);
+      padding-bottom: 10px;
+    }
+    
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 12px 0;
+      font-size: 1rem;
+    }
+    
+    .info-label { color: var(--text-secondary); }
+    .info-value { font-weight: bold; color: var(--text-primary); }
+
+    .weather-list-container {
+      background: var(--bg-card);
+      border: 1px solid var(--glass-border);
+      border-radius: 20px;
+      padding: 16px;
+      height: 400px;
+      overflow-y: auto;
+    }
+    
+    .mini-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .mini-card:hover { background: rgba(79,158,255,0.1); }
+    
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
+
+    @media (max-width: 900px) {
+      .dashboard-grid { grid-template-columns: 1fr; }
+      .map-container { height: 400px; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="container">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-icon">🗺️🌤️</div>
+        <div class="logo-text">
+          <h1>台灣即時地圖與氣象</h1>
+          <p style="color:var(--text-secondary); font-size:0.8rem; margin-top:2px;">點擊地圖標籤查看當地天氣詳情</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <div class="dashboard-grid">
+    
+    <!-- Left: Map -->
+    <div class="map-container">
+      <h3 style="margin-bottom: 12px; font-size: 1rem; color: var(--text-secondary);">互動式氣象地圖 (即時溫度)</h3>
+      <div id="map"></div>
+    </div>
+
+    <!-- Right: Side Panel -->
+    <div class="side-panel">
+      <!-- Selected Area Info -->
+      <div class="selected-info-card" id="detailCard">
+        <h2>請選擇地區</h2>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">點擊左側地圖上的溫度標籤，或從下方列表中選擇縣市，以顯示詳細氣象資訊。</p>
+      </div>
+
+      <!-- Quick List -->
+      <div class="weather-list-container" id="weatherList">
+        <div style="text-align: center; color: var(--text-muted); margin-top: 20px;">資料載入中...</div>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+<script>
+  const API_KEY = "CWA-8AABFD74-D8E6-4D1B-990D-ED01790E5A04";
+  const API_URL = `https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001?Authorization=${API_KEY}&format=JSON`;
+
+  // Taiwan County Coordinates mapping
+  const coords = {
+      '臺北市': [25.032969, 121.565418], '新北市': [25.011985, 121.465545],
+      '桃園市': [24.993077, 121.301053], '臺中市': [24.147736, 120.673648],
+      '臺南市': [22.999728, 120.227028], '高雄市': [22.627278, 120.301435],
+      '基隆市': [25.129337, 121.739775], '新竹縣': [24.827361, 121.012586],
+      '新竹市': [24.813829, 120.96748],  '苗栗縣': [24.560159, 120.821427],
+      '彰化縣': [24.051804, 120.539269], '南投縣': [23.90367, 120.690184],
+      '雲林縣': [23.709203, 120.431337], '嘉義縣': [23.451843, 120.255461],
+      '嘉義市': [23.481567, 120.453625], '屏東縣': [22.673001, 120.487966],
+      '宜蘭縣': [24.731478, 121.762744], '花蓮縣': [23.976964, 121.604473],
+      '臺東縣': [22.758333, 121.144444], '澎湖縣': [23.57119, 119.579316],
+      '金門縣': [24.432729, 118.322521], '連江縣': [26.150495, 119.936081]
+  };
+
+  const WX_MAP = {
+      '1': '☀️', '2': '🌤️', '3': '⛅', '4': '🌥️', '5': '☁️', '6': '☁️', '7': '🌧️',
+      '8': '🌦️', '9': '🌧️', '10': '🌧️', '11': '🌧️', '12': '🌦️', '13': '⛈️', '14': '⛈️', '41': '🌫️'
+  };
+
+  let map;
+  let allWeatherData = [];
+
+  function initMap() {
+      // Initialize Leaflet map centered at Taiwan
+      map = L.map('map', {
+          zoomControl: true,
+          attributionControl: false
+      }).setView([23.6978, 120.9605], 7);
+
+      // Dark style tile layer (CartoDB Dark Matter)
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+          maxZoom: 19
+      }).addTo(map);
+  }
+
+  async function fetchWeatherData() {
+      try {
+          const resp = await fetch(API_URL);
+          const data = await resp.json();
+          parseData(data);
+          renderMarkers();
+          renderList();
+      } catch (err) {
+          console.error('Error fetching data:', err);
+          document.getElementById('weatherList').innerHTML = '<div style="color:red; text-align:center;">資料抓取失敗</div>';
+      }
+  }
+
+  function parseData(json) {
+      const locations = json?.records?.location || [];
+      locations.forEach(loc => {
+          const name = loc.locationName;
+          const elems = {};
+          (loc.weatherElement || []).forEach(e => { elems[e.elementName] = e.time[0].parameter; });
+
+          if(coords[name]) {
+              allWeatherData.push({
+                  name: name,
+                  lat: coords[name][0],
+                  lng: coords[name][1],
+                  wx: elems['Wx']?.parameterName || '--',
+                  wxCode: elems['Wx']?.parameterValue || '1',
+                  minT: parseInt(elems['MinT']?.parameterName) || 0,
+                  maxT: parseInt(elems['MaxT']?.parameterName) || 0,
+                  pop: elems['PoP']?.parameterName || '0',
+                  ci: elems['CI']?.parameterName || '--'
+              });
+          }
+      });
+  }
+
+  function renderMarkers() {
+      allWeatherData.forEach(data => {
+          const iconChar = WX_MAP[data.wxCode] || '🌡️';
+          
+          let tempClass = '';
+          if(data.maxT >= 30) tempClass = 'hot';
+          else if(data.minT <= 15) tempClass = 'cold';
+
+          // Custom DivIcon for Map Marker
+          const customIcon = L.divIcon({
+              className: 'custom-div-icon',
+              html: `<div class="temp-marker ${tempClass}" onclick="showDetail('${data.name}')">
+                        <span>${data.name}</span>
+                        <span>${iconChar}</span>
+                        <span>${data.maxT}°</span>
+                     </div>`,
+              iconSize: [80, 30],
+              iconAnchor: [40, 15]
+          });
+
+          L.marker([data.lat, data.lng], {icon: customIcon}).addTo(map);
+      });
+  }
+
+  function renderList() {
+      const listDiv = document.getElementById('weatherList');
+      listDiv.innerHTML = '';
+      
+      allWeatherData.forEach(data => {
+          const iconChar = WX_MAP[data.wxCode] || '🌡️';
+          listDiv.innerHTML += `
+              <div class="mini-card" onclick="showDetail('${data.name}')">
+                  <div>
+                      <span style="font-weight:bold; margin-right:8px;">${data.name}</span>
+                      <span style="color:var(--text-secondary); font-size:0.85rem;">${iconChar} ${data.wx}</span>
+                  </div>
+                  <div style="color:var(--accent-cyan); font-weight:bold;">
+                      ${data.minT}° - ${data.maxT}°
+                  </div>
+              </div>
+          `;
+      });
+  }
+
+  window.showDetail = function(locationName) {
+      const data = allWeatherData.find(d => d.name === locationName);
+      if(!data) return;
+
+      const iconChar = WX_MAP[data.wxCode] || '🌡️';
+      
+      const html = `
+          <h2>${data.name} 氣象資訊</h2>
+          
+          <div style="text-align:center; margin: 20px 0;">
+              <div style="font-size: 3.5rem; line-height: 1;">${iconChar}</div>
+              <div style="font-size: 1.2rem; margin-top: 10px; color: var(--accent-cyan); font-weight:bold;">${data.wx}</div>
+          </div>
+
+          <div class="info-row">
+              <span class="info-label">溫度範圍</span>
+              <span class="info-value">${data.minT}°C ~ ${data.maxT}°C</span>
+          </div>
+          <div class="info-row">
+              <span class="info-label">降雨機率</span>
+              <span class="info-value" style="color: #a78bfa;">${data.pop}%</span>
+          </div>
+          <div class="info-row">
+              <span class="info-label">舒適度</span>
+              <span class="info-value">${data.ci}</span>
+          </div>
+          <div class="info-row">
+              <span class="info-label">經緯度</span>
+              <span class="info-value" style="font-size: 0.85rem; color: var(--text-secondary);">${data.lat.toFixed(4)}, ${data.lng.toFixed(4)}</span>
+          </div>
+      `;
+      
+      document.getElementById('detailCard').innerHTML = html;
+      
+      // Pan map to location
+      map.flyTo([data.lat, data.lng], 10, {
+          animate: true,
+          duration: 1.5
+      });
+  };
+
+  // Initialize
+  initMap();
+  fetchWeatherData();
+</script>
+
+</body>
+</html>
