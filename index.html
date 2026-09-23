@@ -228,6 +228,18 @@
       <div class="weather-list-container" id="weatherList">
         <div style="text-align: center; color: var(--text-muted); margin-top: 20px;">資料載入中...</div>
       </div>
+      
+      <!-- History Query -->
+      <div class="selected-info-card" style="margin-top: 10px;">
+        <h2>歷史與詳細預報查詢</h2>
+        <div class="info-row" style="gap: 10px;">
+            <input type="text" id="historyLocation" placeholder="輸入縣市/鄉鎮 (如 臺北市)" style="flex:1; padding:10px; border-radius:8px; border:1px solid var(--glass-border); background:var(--bg-deep); color:white; outline:none;">
+            <button onclick="queryHistory()" style="padding:10px 20px; background:linear-gradient(135deg, var(--accent-blue), var(--accent-cyan)); color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">查詢</button>
+        </div>
+        <div id="historyResult" style="margin-top:16px; font-size:0.9rem; color:var(--text-secondary); max-height:200px; overflow-y:auto; padding-right:8px;">
+            輸入地點以透過 Flask 後端查詢詳細歷史與未來資料。
+        </div>
+      </div>
     </div>
 
   </div>
@@ -389,6 +401,7 @@
       `;
       
       document.getElementById('detailCard').innerHTML = html;
+      document.getElementById('historyLocation').value = data.name; // 自動帶入查詢框
       
       // Pan map to location
       map.flyTo([data.lat, data.lng], 10, {
@@ -396,6 +409,33 @@
           duration: 1.5
       });
   };
+
+  async function queryHistory() {
+      const loc = document.getElementById('historyLocation').value || '臺北市';
+      const resultDiv = document.getElementById('historyResult');
+      resultDiv.innerHTML = '<span style="color:var(--accent-cyan)">正在向後端 API 查詢資料...</span>';
+      
+      try {
+          // 呼叫我們部署在 Vercel / 本地端的 Flask API
+          const resp = await fetch(`/api/weather/history?locationName=${loc}`);
+          const data = await resp.json();
+          if(data.success && data.data.length > 0) {
+              const locData = data.data[0];
+              // 取出第一筆天氣要素（通常是 12 小時降雨機率或氣溫等）作為範例顯示
+              const sampleElement = locData.weatherElement[0];
+              
+              resultDiv.innerHTML = `
+                <div style="color:var(--text-primary); margin-bottom:8px;"><strong>✅ ${locData.locationName}</strong> 查詢成功！</div>
+                <div style="font-size:0.8rem; margin-bottom:4px; color:var(--accent-blue);">示範資料 (${sampleElement.elementName} - ${sampleElement.description})：</div>
+                <div style="background:rgba(0,0,0,0.3); padding:10px; border-radius:8px; font-size:0.75rem; font-family:monospace; color:var(--accent-green); white-space:pre-wrap;">${JSON.stringify(sampleElement.time[0], null, 2)}</div>
+              `;
+          } else {
+              resultDiv.innerHTML = `<span style="color:var(--accent-red)">查詢失敗或查無此地區 (${loc})</span>`;
+          }
+      } catch(e) {
+          resultDiv.innerHTML = `<span style="color:var(--accent-red)">無法連線後端 API (Flask 未啟動或部署錯誤): ${e.message}</span>`;
+      }
+  }
 
   // Initialize
   initMap();
