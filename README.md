@@ -21,56 +21,25 @@
 
 | 功能 | 說明 |
 |------|------|
-| 即時天氣顯示 | 顯示當前溫度、濕度、風速等資訊 |
-| 天氣預報 | 提供未來 7 天天氣預測 |
-| 地點搜尋 | 依城市或地區查詢天氣 |
-| 數據圖表 | 以圖表呈現歷史與預測數據 |
-| 響應式設計 | 支援手機、平板、電腦等裝置 |
+| 🗺️ 台灣縣市分界地圖 | 清楚標示台灣 22 縣市行政分界，各縣市氣象標籤精準定位 |
+| 📊 多維度圖層切換 | 支援切換 **氣溫 (°C)**、**降雨機率 (%)**、**相對濕度 (%)**、**天氣現象** 數值 |
+| 🟢 即時連線狀態顯示 | 右上角即時顯示資料更新狀態、最後更新時間、每小時更新倒數計時與手動立即更新按鈕 |
+| ⏱️ 一小時自動定時更新 | 系統每 1 小時 (3600 秒) 自動向中央氣象署抓取最新資料並重新整理畫面 |
+| 📅 未來一週 7 天氣象預報 | 位於地圖下方，展示各縣市未來 7 天之 **溫度範圍、相對濕度、雨量降雨機率、天氣現象** 與走勢折線圖 |
+| 🔍 鄉鎮詳細歷史查詢 | 支援輸入特定鄉鎮或縣市，查詢詳細預報數據 |
+| ☁️ Vercel 雲端發布支援 | 內建 Python Flask Serverless 代理後端 (`api/index.py`)，開箱即用 |
 
 ---
 
 ## 🛠️ 技術架構
 
-- **前端**：HTML / CSS / JavaScript
-- **後端**：Python / Node.js
-- **天氣 API**：中央氣象署開放資料平台（CWA Open Data）
-- **AIoT**：感測器數據整合與 AI 分析
-- **視覺化**：Chart.js / D3.js
-
----
-
-## 🚀 如何開始
-
-### 1. 複製專案
-
-```bash
-git clone https://github.com/yui000130/AIoT-CWA.git
-cd AIoT-CWA
-```
-
-### 2. 安裝相依套件
-
-```bash
-npm install
-# 或
-pip install -r requirements.txt
-```
-
-### 3. 設定環境變數
-
-建立 `.env` 檔案並填入你的 API 金鑰：
-
-```env
-CWA_API_KEY=你的中央氣象署API金鑰
-```
-
-### 4. 啟動專案
-
-```bash
-npm start
-# 或
-python app.py
-```
+- **前端**：HTML5 / CSS3 (Glassmorphism & Responsive Design) / Vanilla JavaScript
+- **地圖視覺化**：高解析度台灣縣市行政邊界向量圖 + 精確經緯百分比定位標籤
+- **後端 (Vercel Serverless)**：Python Flask (`api/index.py`) 串接 CWA API
+- **天氣 API**：
+  - `F-C0032-001`：一般天氣預報 (36 小時 / 各縣市現況)
+  - `F-D0047-091`：各縣市鄉鎮未來一週 7 天詳細預報
+- **資料備援**：內建雙軌制 (Flask 代理 API / CWA 直連 / 本地 JSON 離線備援)
 
 ---
 
@@ -78,16 +47,16 @@ python app.py
 
 ```
 AIoT-CWA/
-├── index.html          # 主頁面
-├── css/
-│   └── style.css       # 樣式設定
-├── js/
-│   └── main.js         # 主要邏輯
-├── assets/
-│   └── images/         # 圖片資源
 ├── api/
-│   └── weather.js      # 天氣 API 串接
-└── README.md           # 說明文件
+│   └── index.py        # Vercel Serverless 後端 (Flask 代理 CWA API)
+├── index.html          # 主儀表板 (台灣分界地圖 + 右上角狀態 + 未來一週預報)
+├── cwa_sample.json     # 中央氣象署一週預報離線範例備援資料
+├── cwa_crawler.py      # Python 爬蟲腳本
+├── cwa_storage.py      # SQLite 本地儲存腳本
+├── test_cwa_api.py     # CWA API 測試腳本
+├── vercel.json         # Vercel 部署設定檔
+├── requirements.txt    # Python 依賴套件 (Flask, requests, flask-cors)
+└── README.md           # 專案說明文件
 ```
 
 ---
