@@ -237,7 +237,7 @@
       position: relative;
       min-height: 640px;
       border-radius: var(--radius-md);
-      background: #080c18;
+      background: #030712;
       border: 1px solid rgba(255, 255, 255, 0.08);
       overflow: hidden;
     }
@@ -248,13 +248,18 @@
       position: absolute;
       inset: 0;
       z-index: 1;
-      background: #080c18;
+      background: #030712;
     }
 
-    /* Leaflet Dark Customization */
+    /* Leaflet Pure Black & White / Dark Monochrome Customization */
     .leaflet-container {
-      background: #080c18 !important;
+      background: #030712 !important;
       font-family: inherit !important;
+    }
+
+    /* High-contrast grayscale tile filter like taiwan-weather-map.vercel.app */
+    .leaflet-tile-pane {
+      filter: grayscale(100%) contrast(110%) brightness(85%);
     }
 
     .leaflet-bar {
@@ -1025,20 +1030,25 @@
 
           <!-- Floating Map Toolbars -->
           <div class="map-quick-bar">
-            <!-- Basemap selector -->
-            <div class="map-btn-group">
-              <button class="map-toggle-btn active" id="btnBaseDark" onclick="setBaseMap('dark')" title="極致深色底圖">🌙 深色</button>
-              <button class="map-toggle-btn" id="btnBaseSatellite" onclick="setBaseMap('satellite')" title="真實衛星空照影像">🛰️ 衛星</button>
-              <button class="map-toggle-btn" id="btnBaseStreet" onclick="setBaseMap('street')" title="細緻地形街道圖">🗺️ 街道</button>
-            </div>
             <!-- Quick region jump -->
             <div class="map-btn-group">
-              <button class="map-toggle-btn" onclick="flyToRegion('all')" title="全台視野">📍 全台</button>
+              <button class="map-toggle-btn active" onclick="flyToRegion('all')" title="全台視野">📍 全台</button>
               <button class="map-toggle-btn" onclick="flyToRegion('north')">北部</button>
               <button class="map-toggle-btn" onclick="flyToRegion('central')">中部</button>
               <button class="map-toggle-btn" onclick="flyToRegion('south')">南部</button>
               <button class="map-toggle-btn" onclick="flyToRegion('east')">東部</button>
               <button class="map-toggle-btn" onclick="flyToRegion('islands')">離島</button>
+            </div>
+            <!-- Layer visibility toggles (county borders & badge labels) -->
+            <div class="map-btn-group" style="padding: 5px 12px; font-size: 0.75rem; color: var(--text-sub); display: flex; align-items: center; gap: 12px;">
+              <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="toggleCountiesCheck" checked onchange="toggleCountiesLayer(this.checked)" style="accent-color: var(--accent-sky); cursor: pointer;" />
+                <span style="color: #cbd5e1;">縣市界線</span>
+              </label>
+              <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; user-select: none;">
+                <input type="checkbox" id="toggleBadgesCheck" checked onchange="toggleBadgesLayer(this.checked)" style="accent-color: var(--accent-sky); cursor: pointer;" />
+                <span style="color: #cbd5e1;">氣象數字標籤</span>
+              </label>
             </div>
           </div>
 
@@ -1053,13 +1063,16 @@
               <span id="legendTitle">氣溫色階 (°C)</span>
               <span id="legendUnit">低 ➔ 高</span>
             </div>
-            <div class="legend-bar" id="legendBar"></div>
+            <div class="legend-bar" id="legendBar" style="background: linear-gradient(to right, #2c7bb6, #5aa2cf, #abd9e9, #7fcdbb, #d9ef8b, #fee08b, #fdae61, #f46d43, #d73027);"></div>
             <div class="legend-labels" id="legendLabels">
+              <span>5°</span>
+              <span>10°</span>
               <span>15°</span>
               <span>20°</span>
-              <span>25°</span>
+              <span>24°</span>
               <span>28°</span>
-              <span>32°+</span>
+              <span>32°</span>
+              <span>36°+</span>
             </div>
           </div>
         </div>
@@ -1273,19 +1286,19 @@
     let countdownInterval = null;
 
     let map = null;
-    let baseLayers = {};
-    let currentBase = 'dark';
     let markers = {};
     let geojsonLayer = null;
     let countyFeatures = {};
+    let showCounties = true;
+    let showBadges = true;
 
     /* ==========================================================================
-       3. LEAFLET GIS ENGINE & REAL MAP INITIALIZATION
+       3. LEAFLET GIS ENGINE & PURE BLACK-AND-WHITE MONOCHROME MAP
        ========================================================================== */
     function initLeafletMap() {
       if (map) return;
 
-      // Initialize map centered nicely on Taiwan
+      // Initialize map centered on Taiwan
       map = L.map('taiwanLeafletMap', {
         center: [23.75, 120.95],
         zoom: 7.8,
@@ -1297,26 +1310,12 @@
       // Add Zoom control at top-left
       L.control.zoom({ position: 'topleft' }).addTo(map);
 
-      // Base GIS Layers
-      baseLayers.dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      // Single Dedicated Black & White / Dark Matter Tile Layer (like taiwan-weather-map.vercel.app)
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
         subdomains: 'abcd',
         maxZoom: 19
-      });
-
-      baseLayers.satellite = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: '&copy; Esri, Maxar, Earthstar Geographics',
-        maxZoom: 18
-      });
-
-      baseLayers.street = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
-        subdomains: 'abcd',
-        maxZoom: 19
-      });
-
-      // Default to dark mode basemap
-      baseLayers.dark.addTo(map);
+      }).addTo(map);
 
       // Initialize interactive markers and load vector boundaries
       initMarkers();
@@ -1328,15 +1327,22 @@
       }, 250);
     }
 
-    function setBaseMap(type) {
-      if (currentBase === type || !baseLayers[type] || !map) return;
-      map.removeLayer(baseLayers[currentBase]);
-      baseLayers[type].addTo(map);
-      currentBase = type;
+    function toggleCountiesLayer(checked) {
+      showCounties = checked;
+      if (!geojsonLayer || !map) return;
+      if (checked) {
+        if (!map.hasLayer(geojsonLayer)) geojsonLayer.addTo(map);
+        geojsonLayer.bringToBack();
+      } else {
+        if (map.hasLayer(geojsonLayer)) map.removeLayer(geojsonLayer);
+      }
+    }
 
-      document.querySelectorAll('#btnBaseDark, #btnBaseSatellite, #btnBaseStreet').forEach(b => b.classList.remove('active'));
-      const activeBtn = document.getElementById(`btnBase${type.charAt(0).toUpperCase() + type.slice(1)}`);
-      if (activeBtn) activeBtn.classList.add('active');
+    function toggleBadgesLayer(checked) {
+      showBadges = checked;
+      document.querySelectorAll('.leaflet-county-badge').forEach(badge => {
+        badge.style.display = checked ? 'inline-flex' : 'none';
+      });
     }
 
     function flyToRegion(region) {
@@ -1351,6 +1357,11 @@
       };
       const t = targets[region] || targets['all'];
       map.flyTo(t.center, t.zoom, { duration: 1.0 });
+
+      // Update active state in region bar
+      document.querySelectorAll('.map-quick-bar .map-toggle-btn').forEach(b => b.classList.remove('active'));
+      const activeBtn = Array.from(document.querySelectorAll('.map-quick-bar .map-toggle-btn')).find(b => b.getAttribute('onclick')?.includes(region));
+      if (activeBtn) activeBtn.classList.add('active');
     }
 
     async function loadTaiwanGeoJSON() {
@@ -1362,11 +1373,11 @@
         geojsonLayer = L.geoJSON(geojson, {
           style: function(feature) {
             return {
-              color: '#38bdf8',
-              weight: 1.5,
-              opacity: 0.65,
-              fillColor: '#0284c7',
-              fillOpacity: 0.08
+              color: 'rgba(255, 255, 255, 0.45)',
+              weight: 1.2,
+              opacity: 0.8,
+              fillColor: '#ffffff',
+              fillOpacity: 0.04
             };
           },
           onEachFeature: function(feature, layer) {
@@ -1378,9 +1389,9 @@
               mouseover: function(e) {
                 const l = e.target;
                 l.setStyle({
-                  weight: 2.5,
-                  color: '#67e8f9',
-                  fillOpacity: 0.32
+                  weight: 2.2,
+                  color: '#ffffff',
+                  fillOpacity: 0.22
                 });
                 if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
                   l.bringToFront();
@@ -1392,10 +1403,9 @@
                   geojsonLayer.resetStyle(l);
                   if (cName === selectedCounty) {
                     l.setStyle({
-                      weight: 2.5,
+                      weight: 2.2,
                       color: '#38bdf8',
-                      fillColor: '#0284c7',
-                      fillOpacity: 0.25
+                      fillOpacity: 0.2
                     });
                   }
                 }
@@ -1405,9 +1415,12 @@
               }
             });
           }
-        }).addTo(map);
+        });
 
-        if (geojsonLayer) geojsonLayer.bringToBack();
+        if (showCounties) {
+          geojsonLayer.addTo(map);
+          geojsonLayer.bringToBack();
+        }
       } catch (err) {
         console.info('GeoJSON 邊界載入提示（GIS底圖已完全正常運作）：', err);
       }
@@ -1448,7 +1461,7 @@
       }
 
       const html = `
-        <div class="leaflet-county-badge ${isActive ? 'active' : ''}" id="badge-${county}">
+        <div class="leaflet-county-badge ${isActive ? 'active' : ''}" id="badge-${county}" style="display: ${showBadges ? 'inline-flex' : 'none'};">
           <span class="badge-name">${county}</span>
           <span class="badge-val">${valueDisplay}</span>
         </div>
@@ -1677,8 +1690,8 @@
 
       if (mode === 'temp') {
         title.textContent = '氣溫色階 (°C)';
-        bar.style.background = 'linear-gradient(to right, #2563eb, #38bdf8, #34d399, #facc15, #fb923c, #f43f5e)';
-        labels.innerHTML = '<span>15°</span><span>20°</span><span>25°</span><span>28°</span><span>32°+</span>';
+        bar.style.background = 'linear-gradient(to right, #2c7bb6, #5aa2cf, #abd9e9, #7fcdbb, #d9ef8b, #fee08b, #fdae61, #f46d43, #d73027)';
+        labels.innerHTML = '<span>5°</span><span>10°</span><span>15°</span><span>20°</span><span>24°</span><span>28°</span><span>32°</span><span>36°+</span>';
       } else if (mode === 'rain') {
         title.textContent = '降雨機率 (%)';
         bar.style.background = 'linear-gradient(to right, #94a3b8, #38bdf8, #2563eb, #1d4ed8, #4338ca)';

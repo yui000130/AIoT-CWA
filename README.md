@@ -34,7 +34,7 @@
 ## 🛠️ 技術架構
 
 - **前端**：HTML5 / CSS3 (Glassmorphism & Responsive Design) / Vanilla JavaScript
-- **地圖視覺化**：高解析度台灣縣市行政邊界向量圖 + 精確經緯百分比定位標籤
+- **地圖視覺化**：Leaflet.js 黑白極簡風格 GIS 底圖（類 Windy）+ 台灣縣市行政邊界向量圖 + 精確經緯度氣象標籤
 - **後端 (Vercel Serverless)**：Python Flask (`api/index.py`) 串接 CWA API
 - **天氣 API**：
   - `F-C0032-001`：一般天氣預報 (36 小時 / 各縣市現況)
