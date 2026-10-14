@@ -1,12 +1,14 @@
 # 🌤️ 台灣即時氣象地圖與每週預報系統 | Taiwan Real-Time Weather GIS Dashboard
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Vercel Deployment](https://img.shields.io/badge/Deploy-Vercel-black?logo=vercel)](https://vercel.com)
+[![Live Demo](https://img.shields.io/badge/Demo-Live_Website-00DC82?logo=vercel&logoColor=white)](https://a-io-t-cwa.vercel.app/)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Leaflet GIS](https://img.shields.io/badge/Leaflet-GIS_Engine-199900?logo=leaflet&logoColor=white)](https://leafletjs.com/)
 [![CWA Open Data](https://img.shields.io/badge/Data-CWA_OpenData-0284c7)](https://opendata.cwa.gov.tw/)
 
 > 結合 **GIS 向量地圖** 與 **中央氣象署 (CWA) / Open-Meteo 開放資料**，打造專業、直覺、美觀的現代化台灣即時天氣與環境監測儀表板。
+
+🌐 **線上即時體驗（Live Demo）**：[台灣即時氣象地圖與未來一週天氣預報 | Taiwan Weather](https://a-io-t-cwa.vercel.app/)
 
 ---
 
@@ -145,6 +147,8 @@ python -m http.server 8000
 ---
 
 ## ☁️ 部署至 Vercel
+
+- 🌐 **線上正式網址**：[台灣即時氣象地圖與未來一週天氣預報 | Taiwan Weather](https://a-io-t-cwa.vercel.app/)
 
 本專案支援一鍵部署至 Vercel：
 1. 將專案 Push 至您的 GitHub Repository。
